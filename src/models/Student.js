@@ -1,4 +1,5 @@
-const mongoose = require('mongoose');
+const mongoose         = require('mongoose');
+const softDeletePlugin = require('../libs/softDelete.plugin');
 
 const studentSchema = new mongoose.Schema(
   {
@@ -11,7 +12,9 @@ const studentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Compound unique index: one email per school
+studentSchema.plugin(softDeletePlugin);
+
+// Compound unique index: one active email per school
 studentSchema.index({ schoolId: 1, email: 1 }, { unique: true });
 
 // Cursor-based pagination support

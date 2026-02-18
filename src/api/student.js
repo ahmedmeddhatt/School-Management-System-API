@@ -5,6 +5,7 @@ const validate = require('../mws/validate');
 const { enrollStudent } = require('../mws/schemas/student.schema');
 
 const ALL_ADMINS = [ROLES.SUPER_ADMIN, ROLES.SCHOOL_ADMIN];
+const actor      = (req) => req.user.userId || req.user._id;
 
 router.use(authenticate, authorize(...ALL_ADMINS));
 
@@ -14,7 +15,7 @@ router.post('/enroll', validate(enrollStudent), async (req, res, next) => {
     const schoolId = req.user.role === ROLES.SUPER_ADMIN ? req.body.schoolId : req.user.schoolId;
     if (!schoolId) return res.status(400).json({ ok: false, code: 'BAD_REQUEST', message: 'schoolId is required' });
 
-    const student = await studentManager.enroll(req.body, schoolId);
+    const student = await studentManager.enroll(req.body, schoolId, actor(req));
     res.status(201).json({ ok: true, data: student });
   } catch (err) {
     if (err.status) return res.status(err.status).json({ ok: false, code: 'ENROLL_ERROR', message: err.message });
@@ -52,7 +53,7 @@ router.get('/:id', async (req, res, next) => {
 router.delete('/:id', async (req, res, next) => {
   try {
     const schoolId = req.user.role === ROLES.SUPER_ADMIN ? req.body.schoolId : req.user.schoolId;
-    const student = await studentManager.remove(req.params.id, schoolId);
+    const student = await studentManager.remove(req.params.id, schoolId, actor(req));
     if (!student) return res.status(404).json({ ok: false, code: 'NOT_FOUND', message: 'Student not found' });
     res.json({ ok: true, message: 'Student removed', data: student });
   } catch (err) {

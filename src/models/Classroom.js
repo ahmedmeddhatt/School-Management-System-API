@@ -1,4 +1,5 @@
-const mongoose = require('mongoose');
+const mongoose         = require('mongoose');
+const softDeletePlugin = require('../libs/softDelete.plugin');
 
 const classroomSchema = new mongoose.Schema(
   {
@@ -9,6 +10,8 @@ const classroomSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+classroomSchema.plugin(softDeletePlugin);
 
 // Fast list lookup per school
 classroomSchema.index({ schoolId: 1 });

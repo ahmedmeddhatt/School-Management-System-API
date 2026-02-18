@@ -1,4 +1,5 @@
-const mongoose = require('mongoose');
+const mongoose       = require('mongoose');
+const softDeletePlugin = require('../libs/softDelete.plugin');
 
 const schoolSchema = new mongoose.Schema(
   {
@@ -8,6 +9,8 @@ const schoolSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+schoolSchema.plugin(softDeletePlugin);
 
 schoolSchema.index({ adminId: 1 });
 
