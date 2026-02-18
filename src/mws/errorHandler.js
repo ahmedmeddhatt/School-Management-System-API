@@ -8,11 +8,9 @@ const AppError = require('../libs/AppError');
 const errorHandler = (err, _req, res, _next) => {
   // ── Operational errors thrown by our code ──────────────────────────────────
   if (err.isOperational) {
-    return res.status(err.statusCode).json({
-      ok:      false,
-      code:    err.errorCode,
-      message: err.message,
-    });
+    const body = { ok: false, code: err.errorCode, message: err.message };
+    if (err.details) body.details = err.details;
+    return res.status(err.statusCode).json(body);
   }
 
   // ── Mongoose ValidationError ───────────────────────────────────────────────
