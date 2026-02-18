@@ -13,7 +13,7 @@ const apiKeySchema = new mongoose.Schema(
 
 const userSchema = new mongoose.Schema(
   {
-    email:    { type: String, required: true, unique: true, trim: true, lowercase: true },
+    email:    { type: String, required: true, trim: true, lowercase: true },
     password: { type: String, required: true, select: false },
     role:     { type: String, enum: ['SUPER_ADMIN', 'SCHOOL_ADMIN'], required: true },
     schoolId: { type: mongoose.Schema.Types.ObjectId, ref: 'School', default: null },

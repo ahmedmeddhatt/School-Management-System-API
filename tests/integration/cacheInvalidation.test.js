@@ -14,6 +14,7 @@
 
 jest.mock('../../src/models/School');
 jest.mock('../../src/loaders/redis');
+jest.mock('../../src/libs/audit');    // prevent real AuditLog writes in update/delete
 
 const School      = require('../../src/models/School');
 const redisLoader = require('../../src/loaders/redis');
@@ -41,7 +42,8 @@ beforeEach(() => {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const dbFindById    = (doc) => School.findById.mockReturnValue({ lean: () => Promise.resolve(doc) });
 const dbFindUpdate  = (doc) => School.findByIdAndUpdate.mockReturnValue({ lean: () => Promise.resolve(doc) });
-const dbFindDelete  = (doc) => School.findByIdAndDelete.mockReturnValue({ lean: () => Promise.resolve(doc) });
+// SchoolManager.delete now uses School.softDelete (soft-delete plugin static)
+const dbSoftDelete  = (doc) => School.softDelete.mockResolvedValue(doc ? { toObject: () => doc } : null);
 const redisMiss     = ()    => mockRedis.get.mockResolvedValue(null);
 const redisHit      = (doc) => mockRedis.get.mockResolvedValue(JSON.stringify(doc));
 
@@ -87,6 +89,7 @@ describe('getById — cache miss / hit', () => {
 // ── UPDATE ────────────────────────────────────────────────────────────────────
 describe('update — cache overwrite (no stale data)', () => {
   test('UPDATE overwrites cache with fresh document via setex', async () => {
+    dbFindById(schoolDoc);   // for before-snapshot inside update()
     dbFindUpdate(updatedDoc);
 
     await schoolManager.update(SCHOOL_ID, { name: 'New Name' });
@@ -105,7 +108,8 @@ describe('update — cache overwrite (no stale data)', () => {
     dbFindById(schoolDoc);
     await schoolManager.getById(SCHOOL_ID);
 
-    // Step 2: UPDATE — overwrites cache with new data
+    // Step 2: UPDATE — overwrites cache with new data (findById for snapshot + findByIdAndUpdate)
+    dbFindById(schoolDoc);
     dbFindUpdate(updatedDoc);
     await schoolManager.update(SCHOOL_ID, { name: 'New Name' });
 
@@ -114,8 +118,9 @@ describe('update — cache overwrite (no stale data)', () => {
     const result = await schoolManager.getById(SCHOOL_ID);
 
     expect(result.name).toBe('New Name');
-    // DB was NOT called again for the second GET
-    expect(School.findById).toHaveBeenCalledTimes(1);
+    // findById called twice: once for initial GET miss + once for update() before-snapshot
+    // The third GET (after update) must NOT call findById again (cache hit)
+    expect(School.findById).toHaveBeenCalledTimes(2);
   });
 
   test('UPDATE returns null and skips cache when document not found', async () => {
@@ -130,8 +135,8 @@ describe('update — cache overwrite (no stale data)', () => {
 
 // ── DELETE ────────────────────────────────────────────────────────────────────
 describe('delete — cache purge', () => {
-  test('DELETE calls redis.del to remove stale cache entry', async () => {
-    dbFindDelete(schoolDoc);
+  test('DELETE (soft) calls redis.del to remove stale cache entry', async () => {
+    dbSoftDelete(schoolDoc);
 
     await schoolManager.delete(SCHOOL_ID);
 
@@ -140,7 +145,7 @@ describe('delete — cache purge', () => {
   });
 
   test('DELETE returns null and skips redis.del when document not found', async () => {
-    dbFindDelete(null);
+    dbSoftDelete(null);
 
     const result = await schoolManager.delete(SCHOOL_ID);
 

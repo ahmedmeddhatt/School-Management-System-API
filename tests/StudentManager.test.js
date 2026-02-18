@@ -4,6 +4,8 @@
  */
 jest.mock('../src/models/Student');
 jest.mock('../src/models/Classroom');
+jest.mock('../src/libs/audit');       // prevent real AuditLog writes
+jest.mock('../src/models/AuditLog'); // guard against direct imports
 jest.mock('mongoose', () => {
   const actual = jest.requireActual('mongoose');
   const session = {
@@ -68,7 +70,6 @@ describe('StudentManager.enroll', () => {
     expect(Classroom.findOneAndUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         $expr: { $lt: ['$studentCount', '$capacity'] },
-        $inc: undefined, // filter arg
       }),
       { $inc: { studentCount: 1 } },
       expect.objectContaining({ session: mockSession })
