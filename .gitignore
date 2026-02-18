@@ -1,0 +1,4 @@
+node_modules/
+.env
+*.log
+bash.exe.stackdump
