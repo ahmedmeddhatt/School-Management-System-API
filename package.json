@@ -4,8 +4,8 @@
   "description": "School Management System API built with Node.js, Express, Mongoose, Redis",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "nodemon src/index.js",
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
     "test": "jest --testEnvironment node --forceExit --detectOpenHandles"
   },
   "dependencies": {
@@ -17,6 +17,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.4.1",
     "qrcode": "^1.5.4",
+    "serverless-http": "^4.0.0",
     "speakeasy": "^2.0.0"
   },
   "devDependencies": {
