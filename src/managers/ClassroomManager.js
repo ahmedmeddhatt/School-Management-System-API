@@ -20,17 +20,20 @@ class ClassroomManager {
 
   async listBySchool(schoolId) {
     const redis  = getClient();
-    const key    = listCacheKey(schoolId);
+    const key    = listCacheKey(schoolId || 'all');
     const cached = await redis.get(key);
     if (cached) return JSON.parse(cached);
 
-    const classrooms = await Classroom.find({ schoolId }).lean();
+    const filter = schoolId ? { schoolId } : {};
+    const classrooms = await Classroom.find(filter).lean();
     await redis.setex(key, CACHE_TTL, JSON.stringify(classrooms));
     return classrooms;
   }
 
   async getById(id, schoolId) {
-    return Classroom.findOne({ _id: id, schoolId }).lean();
+    const filter = { _id: id };
+    if (schoolId) filter.schoolId = schoolId;
+    return Classroom.findOne(filter).lean();
   }
 
   async update(id, schoolId, dto, actorId) {

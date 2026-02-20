@@ -1,10 +1,18 @@
 const router      = require('express').Router();
 const authManager = require('../managers/AuthManager');
-const { authenticate } = require('../mws/rbac');
+const { authenticate, authorize, ROLES } = require('../mws/rbac');
 const validate    = require('../mws/validate');
 const {
-  login, mfaActivate, mfaValidate, createApiKey,
+  login, register, createApiKey,
 } = require('../mws/schemas/auth.schema');
+
+// POST /auth/register
+router.post('/register', validate(register), async (req, res, next) => {
+  try {
+    const result = await authManager.register(req.body);
+    res.status(201).json({ ok: true, ...result });
+  } catch (err) { next(err); }
+});
 
 // POST /auth/login
 router.post('/login', validate(login), async (req, res, next) => {
@@ -14,30 +22,23 @@ router.post('/login', validate(login), async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /auth/mfa/validate  — step 2 of MFA login
-router.post('/mfa/validate', validate(mfaValidate), async (req, res, next) => {
-  try {
-    const result = await authManager.mfaValidate(req.body.preToken, req.body.totpToken);
-    res.json({ ok: true, ...result });
-  } catch (err) { next(err); }
-});
-
 // ── Routes below require a valid JWT ─────────────────────────────────────────
 router.use(authenticate);
 
-// POST /auth/mfa/setup  — generate secret + QR code
-router.post('/mfa/setup', async (req, res, next) => {
+// GET  /auth/users           — list all users (SUPER_ADMIN only)
+router.get('/users', authorize(ROLES.SUPER_ADMIN), async (req, res, next) => {
   try {
-    const data = await authManager.mfaSetup(req.user.userId);
-    res.json({ ok: true, data });
+    const users = await authManager.listUsers();
+    res.json({ ok: true, data: users });
   } catch (err) { next(err); }
 });
 
-// POST /auth/mfa/activate  — confirm first TOTP token to enable MFA
-router.post('/mfa/activate', validate(mfaActivate), async (req, res, next) => {
+// GET  /auth/users/:id       — get user by id (SUPER_ADMIN only)
+router.get('/users/:id', authorize(ROLES.SUPER_ADMIN), async (req, res, next) => {
   try {
-    const result = await authManager.mfaActivate(req.user.userId, req.body.token);
-    res.json({ ok: true, ...result });
+    const user = await authManager.getUserById(req.params.id);
+    if (!user) return res.status(404).json({ ok: false, code: 'NOT_FOUND', message: 'User not found' });
+    res.json({ ok: true, data: user });
   } catch (err) { next(err); }
 });
 

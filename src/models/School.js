@@ -15,7 +15,6 @@ schoolSchema.plugin(softDeletePlugin);
 schoolSchema.index({ adminId: 1 });
 
 // Cursor-based pagination for SuperAdmin listing
-schoolSchema.index({ _id: 1 });
 schoolSchema.index({ createdAt: -1, _id: -1 });
 
 module.exports = mongoose.model('School', schoolSchema);

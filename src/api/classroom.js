@@ -20,7 +20,7 @@ router.post('/', authorize(...ALL_ADMINS), ownSchoolOnly, validate(createClassro
 router.get('/', authorize(...ALL_ADMINS), async (req, res, next) => {
   try {
     const schoolId = req.user.role === ROLES.SUPER_ADMIN ? req.query.schoolId : req.user.schoolId;
-    if (!schoolId) return res.status(400).json({ ok: false, code: 'BAD_REQUEST', message: 'schoolId is required' });
+    if (!schoolId && req.user.role !== ROLES.SUPER_ADMIN) return res.status(400).json({ ok: false, code: 'BAD_REQUEST', message: 'schoolId is required' });
     const classrooms = await classroomManager.listBySchool(schoolId);
     res.json({ ok: true, data: classrooms });
   } catch (err) { next(err); }

@@ -17,7 +17,7 @@
 ![License](https://img.shields.io/badge/License-MIT-blue)
 
 > **Production-ready REST API** for managing Schools, Classrooms & Students —
-> built with atomic concurrency guards, Redis caching, soft deletes, MFA, and API keys.
+> built with atomic concurrency guards, Redis caching, soft deletes, and API keys.
 
 </div>
 
@@ -30,7 +30,7 @@
 | 🌐 Server | Node.js 20 + Express 4 |
 | 🗄️ Database | MongoDB + Mongoose 8 |
 | ⚡ Cache | Redis (ioredis) |
-| 🔐 Auth | JWT + TOTP MFA (speakeasy) + API Keys |
+| 🔐 Auth | JWT + API Keys |
 | 🧪 Tests | Jest (66 tests, 0 failures) |
 | ✅ Validation | Joi schemas |
 
@@ -42,7 +42,7 @@
 school/
 ├── 📁 src/
 │   ├── 📁 api/            ← Express routers
-│   │   ├── auth.js        (login, MFA, API keys)
+│   │   ├── auth.js        (register, login, users, API keys)
 │   │   ├── school.js      (SUPER_ADMIN only)
 │   │   ├── classroom.js   (both roles)
 │   │   └── student.js     (enroll, paginate, remove)
@@ -54,7 +54,7 @@ school/
 │   │   └── StudentManager.js
 │   │
 │   ├── 📁 models/         ← Mongoose schemas
-│   │   ├── User.js        (MFA + API keys)
+│   │   ├── User.js        (API keys)
 │   │   ├── School.js
 │   │   ├── Classroom.js   (studentCount for O(1) capacity)
 │   │   ├── Student.js
@@ -118,30 +118,20 @@ Authorization: Bearer <jwt>       ← Standard JWT login
 Authorization: ApiKey <raw-key>   ← Programmatic / CI access
 ```
 
-### Login Flow
+### Register & Login Flow
 
 ```
-POST /auth/login
-  ├── No MFA  →  { token: "jwt..." }         ✅ done
-  └── MFA on  →  { mfaRequired: true, preToken: "..." }
-                      │
-                      ▼
-              POST /auth/mfa/validate
-                  { preToken, totpToken }
-                      │
-                      ▼
-                  { token: "jwt..." }         ✅ done
-```
-
-### MFA Setup Flow
-
-```
-POST /auth/mfa/setup      → { secret, qrDataUrl }
-    ↓  (scan QR in app)
-POST /auth/mfa/activate   → { mfaEnabled: true }
+POST /auth/register  { email, password }
     ↓
-🎉 All future logins require TOTP code
+{ token: "jwt..." }   ← role defaults to SCHOOL_ADMIN
+                        assign role/schoolId manually via DB
+
+POST /auth/login  { email, password }
+    ↓
+{ token: "jwt..." }   ✅ done
 ```
+
+> Role is set manually. New users register as `SCHOOL_ADMIN` by default.
 
 ### API Keys
 
@@ -265,10 +255,10 @@ Mutation (PUT/DELETE):
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
+| `POST` | `/auth/register` | — | Register (defaults to SCHOOL_ADMIN) |
 | `POST` | `/auth/login` | — | Login with email + password |
-| `POST` | `/auth/mfa/setup` | JWT | Generate TOTP secret + QR |
-| `POST` | `/auth/mfa/activate` | JWT | Enable MFA after first verify |
-| `POST` | `/auth/mfa/validate` | — | Validate TOTP during login |
+| `GET` | `/auth/users` | JWT + SUPER | List all users |
+| `GET` | `/auth/users/:id` | JWT + SUPER | Get user by ID |
 | `GET` | `/auth/api-keys` | JWT | List API keys (no hash) |
 | `POST` | `/auth/api-keys` | JWT | Create API key |
 | `DELETE` | `/auth/api-keys/:id` | JWT | Revoke API key |
@@ -288,8 +278,8 @@ Mutation (PUT/DELETE):
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `POST` | `/api/classrooms` | Create classroom |
-| `GET` | `/api/classrooms` | List classrooms (cached) |
-| `GET` | `/api/classrooms/:id` | Get classroom |
+| `GET` | `/api/classrooms[?schoolId=]` | List classrooms — SUPER_ADMIN gets all if no `schoolId` |
+| `GET` | `/api/classrooms/:id[?schoolId=]` | Get classroom — `schoolId` optional for SUPER_ADMIN |
 | `PUT` | `/api/classrooms/:id` | Update classroom |
 | `DELETE` | `/api/classrooms/:id` | Soft-delete classroom |
 | `PATCH` | `/api/classrooms/:id/restore` | Restore *(SUPER_ADMIN)* |
@@ -400,7 +390,7 @@ Total: 66 tests — 0 failures 🎉
 | Cache invalidation | GET→UPDATE→GET returns fresh data, no stale |
 | Soft delete filter | `find()` auto-injects `{ deletedAt: null }` |
 | API key hash | Raw key never stored; SHA-256 only |
-| MFA gate | Login returns `preToken` when MFA enabled |
+| Register | New users default to SCHOOL_ADMIN; role set manually |
 | Session cleanup | `endSession()` always called, even on crash |
 
 ---
